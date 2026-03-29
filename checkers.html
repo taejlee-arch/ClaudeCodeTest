@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkers</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 24px;
+    }
+
+    h1 { font-size: 2rem; letter-spacing: 4px; color: #e94560; }
+
+    #status {
+      font-size: 1.2rem;
+      min-height: 1.5em;
+      color: #a8dadc;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 72px);
+      grid-template-rows: repeat(8, 72px);
+    }
+
+    .cell {
+      width: 72px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: default;
+    }
+
+    .cell.light { background: #0f3460; }
+    .cell.dark  { background: #16213e; }
+
+    .cell.valid-move { cursor: pointer; }
+    .cell.valid-move::after {
+      content: '';
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(168, 218, 220, 0.35);
+      pointer-events: none;
+    }
+
+    .piece {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      user-select: none;
+      position: relative;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+    }
+
+    .piece.p1 { background: radial-gradient(circle at 35% 35%, #ff6b81, #e94560); border: 2px solid #c73652; }
+    .piece.p2 { background: radial-gradient(circle at 35% 35%, #d4f5f7, #a8dadc); border: 2px solid #7bbfc2; }
+
+    .piece.selected {
+      transform: scale(1.12);
+      box-shadow: 0 0 0 3px #fff, 0 0 16px rgba(255,255,255,0.4);
+    }
+
+    .piece.must-jump {
+      box-shadow: 0 0 0 3px #f9ca24, 0 0 12px rgba(249,202,36,0.5);
+    }
+
+    .piece.king::after {
+      content: '♛';
+      position: absolute;
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.85);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+
+    #reset {
+      padding: 10px 32px;
+      font-size: 1rem;
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #reset:hover { background: #c73652; }
+  </style>
+</head>
+<body>
+  <h1>CHECKERS</h1>
+  <div id="status"></div>
+  <div id="board"></div>
+  <button id="reset">Restart</button>
+
+  <script>
+    // board[r][c] = null | { p: 1|2, king: bool }
+    let board, turn, selected, mustJumps, gameOver, chainPiece;
+
+    function init() {
+      board = Array.from({length: 8}, () => Array(8).fill(null));
+      // Player 1 (red) on rows 0-2, dark squares
+      for (let r = 0; r < 3; r++)
+        for (let c = 0; c < 8; c++)
+          if ((r + c) % 2 === 1) board[r][c] = { p: 1, king: false };
+      // Player 2 (teal) on rows 5-7, dark squares
+      for (let r = 5; r < 8; r++)
+        for (let c = 0; c < 8; c++)
+          if ((r + c) % 2 === 1) board[r][c] = { p: 2, king: false };
+      turn = 1;
+      selected = null;
+      chainPiece = null;
+      gameOver = false;
+      mustJumps = getJumpsForPlayer(turn);
+      render();
+      setStatus(`Player ${turn === 1 ? '🔴' : '🔵'} (${turn === 1 ? 'Red' : 'Teal'})'s turn`);
+    }
+
+    function getValidMoves(r, c) {
+      const piece = board[r][c];
+      if (!piece) return [];
+      const moves = [];
+      const dirs = [];
+      if (piece.p === 1 || piece.king) dirs.push([1, -1], [1, 1]);   // down
+      if (piece.p === 2 || piece.king) dirs.push([-1, -1], [-1, 1]); // up
+
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr, nc = c + dc;
+        if (inBounds(nr, nc) && !board[nr][nc])
+          moves.push({ toR: nr, toC: nc });
+        // jump
+        const jr = r + dr * 2, jc = c + dc * 2;
+        if (inBounds(jr, jc) && board[nr]?.[nc]?.p === opponent(piece.p) && !board[jr][jc])
+          moves.push({ toR: jr, toC: jc, jumpR: nr, jumpC: nc });
+      }
+      return moves;
+    }
+
+    function getJumpsForPlayer(player) {
+      const jumpers = [];
+      for (let r = 0; r < 8; r++)
+        for (let c = 0; c < 8; c++)
+          if (board[r][c]?.p === player && getValidMoves(r, c).some(m => m.jumpR !== undefined))
+            jumpers.push({ r, c });
+      return jumpers;
+    }
+
+    function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+    function opponent(p) { return p === 1 ? 2 : 1; }
+
+    function handleCellClick(r, c) {
+      if (gameOver) return;
+      const piece = board[r][c];
+
+      // Clicking own piece — select it (if allowed)
+      if (piece && piece.p === turn) {
+        // During a chain jump, only the chain piece can be selected
+        if (chainPiece && (chainPiece.r !== r || chainPiece.c !== c)) return;
+        // If mandatory jumps exist, only pieces that can jump may be selected
+        if (mustJumps.length > 0 && !mustJumps.some(j => j.r === r && j.c === c)) return;
+        selected = { r, c };
+        render();
+        return;
+      }
+
+      // Clicking a destination
+      if (selected) {
+        const moves = getValidMoves(selected.r, selected.c)
+          .filter(m => mustJumps.length === 0 || m.jumpR !== undefined);
+        const move = moves.find(m => m.toR === r && m.toC === c);
+        if (move) {
+          applyMove(selected, move);
+          return;
+        }
+      }
+
+      // Clicking empty non-valid square — deselect
+      selected = null;
+      render();
+    }
+
+    function applyMove(from, move) {
+      const piece = { ...board[from.r][from.c] };
+      board[move.toR][move.toC] = piece;
+      board[from.r][from.c] = null;
+
+      // Capture
+      if (move.jumpR !== undefined) board[move.jumpR][move.jumpC] = null;
+
+      // King promotion — newly promoted king cannot continue chain
+      let justPromoted = false;
+      if (!piece.king) {
+        if (piece.p === 1 && move.toR === 7) { piece.king = true; board[move.toR][move.toC] = piece; justPromoted = true; }
+        if (piece.p === 2 && move.toR === 0) { piece.king = true; board[move.toR][move.toC] = piece; justPromoted = true; }
+      }
+
+      // Check for chain jump
+      if (move.jumpR !== undefined && !justPromoted) {
+        const further = getValidMoves(move.toR, move.toC).filter(m => m.jumpR !== undefined);
+        if (further.length > 0) {
+          chainPiece = { r: move.toR, c: move.toC };
+          selected = { r: move.toR, c: move.toC };
+          mustJumps = [chainPiece];
+          render();
+          setStatus(`Player ${turn === 1 ? '🔴 Red' : '🔵 Teal'} — continue jumping!`);
+          return;
+        }
+      }
+
+      // End of turn
+      chainPiece = null;
+      selected = null;
+
+      // Check win
+      const opp = opponent(turn);
+      const oppMoves = getAllMovesForPlayer(opp);
+      if (oppMoves.length === 0) {
+        render();
+        setStatus(`Player ${turn === 1 ? '🔴 Red' : '🔵 Teal'} wins!`);
+        gameOver = true;
+        return;
+      }
+
+      turn = opp;
+      mustJumps = getJumpsForPlayer(turn);
+      render();
+      setStatus(`Player ${turn === 1 ? '🔴 Red' : '🔵 Teal'}'s turn${mustJumps.length ? ' — must jump!' : ''}`);
+    }
+
+    function getAllMovesForPlayer(player) {
+      const jumps = getJumpsForPlayer(player);
+      if (jumps.length > 0) return jumps; // mandatory jumps only
+      const moves = [];
+      for (let r = 0; r < 8; r++)
+        for (let c = 0; c < 8; c++)
+          if (board[r][c]?.p === player && getValidMoves(r, c).length > 0)
+            moves.push({ r, c });
+      return moves;
+    }
+
+    function render() {
+      const el = document.getElementById('board');
+      el.innerHTML = '';
+
+      // Compute valid destinations for selected piece
+      const validDests = new Set();
+      if (selected) {
+        const moves = getValidMoves(selected.r, selected.c)
+          .filter(m => mustJumps.length === 0 || m.jumpR !== undefined);
+        for (const m of moves) validDests.add(`${m.toR},${m.toC}`);
+      }
+
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const cell = document.createElement('div');
+          const dark = (r + c) % 2 === 1;
+          cell.className = `cell ${dark ? 'dark' : 'light'}`;
+          if (validDests.has(`${r},${c}`)) cell.classList.add('valid-move');
+          cell.addEventListener('click', () => handleCellClick(r, c));
+
+          const piece = board[r][c];
+          if (piece) {
+            const div = document.createElement('div');
+            div.className = `piece p${piece.p}${piece.king ? ' king' : ''}`;
+            if (selected && selected.r === r && selected.c === c) div.classList.add('selected');
+            if (!selected && mustJumps.some(j => j.r === r && j.c === c)) div.classList.add('must-jump');
+            cell.appendChild(div);
+          }
+
+          el.appendChild(cell);
+        }
+      }
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    document.getElementById('reset').addEventListener('click', init);
+    init();
+  </script>
+</body>
+</html>
