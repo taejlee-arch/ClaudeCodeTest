@@ -121,6 +121,8 @@
         highlight(win);
         setStatus(`Player ${current} wins!`);
         over = true;
+        if (current === 'X') playMeow();
+        else playLaugh();
         return;
       }
       if (board.every(Boolean)) {
@@ -130,6 +132,49 @@
       }
       current = current === 'X' ? 'O' : 'X';
       setStatus(`Player ${current}'s turn`);
+    }
+
+    function playLaugh() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        for (let i = 0; i < 3; i++) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.frequency.setValueAtTime(400 + i * 100, now + i * 0.15);
+          osc.frequency.linearRampToValueAtTime(300 + i * 80, now + i * 0.15 + 0.1);
+          
+          gain.gain.setValueAtTime(0.2, now + i * 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.2);
+          
+          osc.start(now + i * 0.15);
+          osc.stop(now + i * 0.15 + 0.2);
+        }
+      } catch (e) {}
+    }
+
+    function playMeow() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.linearRampToValueAtTime(300, now + 0.4);
+        
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } catch (e) {}
     }
 
     document.getElementById('reset').addEventListener('click', init);
