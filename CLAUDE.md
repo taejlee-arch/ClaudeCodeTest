@@ -15,13 +15,15 @@ cmd.exe /c start "" "C:\Users\taejl\projects\ClaudeCodeTest\index.html"
 
 ## Git workflow
 
-After every meaningful change: commit with a clean message and push to `origin/master`.
+**Commit and push after every meaningful change.** Do not batch up multiple features into one commit. Each logical unit of work — a new feature, a bug fix, a refactor — gets its own commit and is pushed immediately so work is never lost.
 
 ```bash
 git add index.html
 git commit -m "short description of change"
 git push
 ```
+
+Commit message format: lowercase imperative, e.g. `add score tracking`, `fix win detection bug`, `style board cells`.
 
 Remote: https://github.com/taejlee-arch/ClaudeCodeTest
 
