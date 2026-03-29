@@ -174,8 +174,6 @@
       if (piece && piece.p === turn) {
         // During a chain jump, only the chain piece can be selected
         if (chainPiece && (chainPiece.r !== r || chainPiece.c !== c)) return;
-        // If mandatory jumps exist, only pieces that can jump may be selected
-        if (mustJumps.length > 0 && !mustJumps.some(j => j.r === r && j.c === c)) return;
         selected = { r, c };
         render();
         return;
@@ -183,8 +181,7 @@
 
       // Clicking a destination
       if (selected) {
-        const moves = getValidMoves(selected.r, selected.c)
-          .filter(m => mustJumps.length === 0 || m.jumpR !== undefined);
+        const moves = getValidMoves(selected.r, selected.c);
         const move = moves.find(m => m.toR === r && m.toC === c);
         if (move) {
           applyMove(selected, move);
@@ -242,7 +239,7 @@
       turn = opp;
       mustJumps = getJumpsForPlayer(turn);
       render();
-      setStatus(`Player ${turn === 1 ? '🔴 Red' : '🔵 Teal'}'s turn${mustJumps.length ? ' — must jump!' : ''}`);
+      setStatus(`Player ${turn === 1 ? '🔴 Red' : '🔵 Teal'}'s turn`);
     }
 
     function getAllMovesForPlayer(player) {
@@ -281,7 +278,6 @@
             const div = document.createElement('div');
             div.className = `piece p${piece.p}${piece.king ? ' king' : ''}`;
             if (selected && selected.r === r && selected.c === c) div.classList.add('selected');
-            if (!selected && mustJumps.some(j => j.r === r && j.c === c)) div.classList.add('must-jump');
             cell.appendChild(div);
           }
 
