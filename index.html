@@ -95,7 +95,8 @@
       board.forEach((val, i) => {
         const cell = document.createElement('div');
         cell.className = 'cell' + (val ? ` taken ${val.toLowerCase()}` : '');
-        cell.textContent = val || '';
+        if (val === 'X') cell.textContent = '😺';
+        else if (val === 'O') cell.textContent = '😊';
         cell.addEventListener('click', () => move(i));
         el.appendChild(cell);
       });
